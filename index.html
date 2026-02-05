@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora de Física com Gráfico</title>
+    <title>Calculadora de Física com Trajetória</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📐</text></svg>">
     <style>
@@ -169,24 +169,24 @@
                 
                 <div class="help">
                     <div class="help-title">Como usar:</div>
-                    1. Defina todos os valores: <code>t = 3</code>, <code>v = 7</code><br>
+                    1. Defina <strong>todos</strong> os valores: <code>t = 5</code>, <code>v = 10</code><br>
                     2. Escreva as fórmulas: <code>x = v*t</code><br>
                     3. Clique em <strong>Calcular</strong><br>
-                    4. Veja o resultado no <strong>GRÁFICO</strong>! ✅
+                    4. Veja a <strong>TRAJETÓRIA</strong> de t=0 até o t que você definiu! 🎯
                 </div>
                 
-                <textarea id="formulaInput" spellcheck="false"># Exemplo simples
-# Calcular posição com velocidade constante
+                <textarea id="formulaInput" spellcheck="false"># Exemplo: Velocidade constante
+# Ver trajetória de t=0 até t=5
 
-t = 3       # tempo em segundos
-v = 7       # velocidade em m/s
+t = 5       # tempo final (segundos)
+v = 10      # velocidade (m/s)
 
 x = v*t     # posição em x
 y = 0       # posição em y
 
-# Resultado: x = 21 metros</textarea>
+# Mostra caminho de x=0 até x=50</textarea>
                 
-                <button class="btn-calculate" onclick="calculate()">🧮 Calcular e Mostrar no Gráfico</button>
+                <button class="btn-calculate" onclick="calculate()">🧮 Calcular e Mostrar Trajetória</button>
                 
                 <div id="errorDisplay"></div>
             </div>
@@ -195,12 +195,12 @@ y = 0       # posição em y
         <!-- Painel Direito -->
         <div>
             <div class="card">
-                <div class="card-header">📊 Gráfico - Validação Visual</div>
+                <div class="card-header">📊 Gráfico - Trajetória Completa</div>
                 <canvas id="canvas" width="700" height="500"></canvas>
             </div>
             
             <div class="results" id="resultsDisplay" style="display:none">
-                <div class="result-title">✅ Resultados Calculados</div>
+                <div class="result-title">✅ Resultados em t = <span id="timeValue"></span>s</div>
                 <div class="result-grid" id="resultGrid"></div>
             </div>
         </div>
@@ -222,54 +222,83 @@ y = 0       # posição em y
             errorDisplay.innerHTML = '';
             
             try {
+                // Primeiro, extrai as constantes e fórmulas SEM substituir t
                 const lines = input.split('\n');
-                const scope = {};
-                const results = {};
+                const constants = {};
+                const formulas = {};
+                let tValue = null;
                 
-                // Processa linha por linha
                 for (let line of lines) {
                     line = line.trim();
-                    
-                    // Ignora comentários e linhas vazias
                     if (line.startsWith('#') || line === '') continue;
                     
-                    // Processa atribuições
                     if (line.includes('=')) {
                         const [left, right] = line.split('=').map(s => s.trim());
                         
-                        try {
-                            const value = math.evaluate(right, scope);
-                            scope[left] = value;
-                            results[left] = value;
-                        } catch (e) {
-                            throw new Error(`Erro na linha "${line}": ${e.message}`);
+                        // Se é t, guarda o valor
+                        if (left === 't') {
+                            tValue = math.evaluate(right);
+                            continue;
+                        }
+                        
+                        // Se não contém t, é constante
+                        if (!right.includes('t')) {
+                            constants[left] = math.evaluate(right, constants);
+                        } else {
+                            // É fórmula que depende de t
+                            formulas[left] = right;
                         }
                     }
                 }
                 
-                if (Object.keys(results).length === 0) {
-                    throw new Error('Nenhuma equação encontrada! Use: variavel = valor');
+                if (tValue === null) {
+                    throw new Error('Defina o tempo: t = valor');
                 }
                 
-                // Pega valores principais
-                const x = results.x || 0;
-                const y = results.y || 0;
-                const t = results.t || 0;
+                if (Object.keys(formulas).length === 0) {
+                    throw new Error('Defina pelo menos uma fórmula com t (ex: x = v*t)');
+                }
                 
-                // Desenha no gráfico
-                drawGraph(x, y, results);
+                // Calcula trajetória de t=0 até tValue
+                const trajectory = [];
+                const steps = 100;
+                const dt = tValue / steps;
+                
+                for (let i = 0; i <= steps; i++) {
+                    const currentT = i * dt;
+                    const scope = { ...constants, t: currentT };
+                    const point = {};
+                    
+                    for (let [variable, formula] of Object.entries(formulas)) {
+                        point[variable] = math.evaluate(formula, scope);
+                    }
+                    
+                    trajectory.push({
+                        t: currentT,
+                        x: point.x || 0,
+                        y: point.y || 0,
+                        ...point
+                    });
+                }
+                
+                // Pega valores finais (em t = tValue)
+                const finalValues = trajectory[trajectory.length - 1];
+                
+                // Desenha trajetória
+                drawTrajectory(trajectory, finalValues, tValue);
                 
                 // Mostra resultados
                 resultsDisplay.style.display = 'block';
+                document.getElementById('timeValue').textContent = tValue.toFixed(2);
                 resultGrid.innerHTML = '';
                 
-                // Mostra principais primeiro
-                const mainVars = ['t', 'x', 'y', 'v', 'vx', 'vy', 'a', 'ax', 'ay'];
-                const shown = new Set();
+                // Mostra principais
+                const mainVars = ['x', 'y', 'v', 'vx', 'vy', 'a', 'ax', 'ay'];
+                const shown = new Set(['t']);
                 
                 mainVars.forEach(variable => {
-                    if (results[variable] !== undefined) {
-                        const value = results[variable];
+                    if (finalValues[variable] !== undefined) {
+                        const value = finalValues[variable];
                         const formattedValue = typeof value === 'number' ? value.toFixed(3) : value;
                         resultGrid.innerHTML += `
                             <div class="result-item">
@@ -282,7 +311,7 @@ y = 0       # posição em y
                 });
                 
                 // Mostra outros
-                Object.entries(results).forEach(([variable, value]) => {
+                Object.entries(finalValues).forEach(([variable, value]) => {
                     if (!shown.has(variable)) {
                         const formattedValue = typeof value === 'number' ? value.toFixed(3) : value;
                         resultGrid.innerHTML += `
@@ -333,67 +362,52 @@ y = 0       # posição em y
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 2;
             
-            // Eixo X
             ctx.beginPath();
             ctx.moveTo(0, originY);
             ctx.lineTo(width, originY);
             ctx.stroke();
             
-            // Eixo Y
             ctx.beginPath();
             ctx.moveTo(originX, 0);
             ctx.lineTo(originX, height);
             ctx.stroke();
             
-            // Labels dos eixos
+            // Labels
             ctx.fillStyle = '#64748b';
             ctx.font = 'bold 14px sans-serif';
             ctx.fillText('X (metros)', width - 80, originY - 10);
             ctx.fillText('Y (metros)', originX + 10, 20);
             
-            // Origem
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px monospace';
-            ctx.fillText('0', originX + 5, originY - 5);
-            
-            // Marcações
-            ctx.fillStyle = '#64748b';
-            ctx.font = '11px monospace';
-            
-            for (let i = -30; i <= 30; i += 10) {
-                if (i === 0) continue;
-                
-                const xPos = originX + i * scale;
-                const yPos = originY - i * scale;
-                
-                if (xPos > 0 && xPos < width) {
-                    ctx.fillText(i.toString(), xPos - 8, originY + 15);
-                }
-                
-                if (yPos > 0 && yPos < height) {
-                    ctx.fillText(i.toString(), originX - 25, yPos + 4);
-                }
-            }
-            
             // Instrução
             ctx.fillStyle = '#64748b';
             ctx.font = '16px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('Preencha as fórmulas e clique em Calcular', width/2, height - 20);
+            ctx.fillText('Defina as fórmulas e clique em Calcular', width/2, height - 20);
             ctx.textAlign = 'left';
         }
         
-        function drawGraph(posX, posY, results) {
+        function drawTrajectory(trajectory, finalValues, tValue) {
             const width = canvas.width;
             const height = canvas.height;
             
             ctx.fillStyle = '#0f172a';
             ctx.fillRect(0, 0, width, height);
             
-            // Calcula escala automática baseada nos valores
-            let maxVal = Math.max(Math.abs(posX), Math.abs(posY), 10);
-            let scale = Math.min(width, height) / (maxVal * 2.5);
+            // Encontra limites
+            let minX = 0, maxX = 0, minY = 0, maxY = 0;
+            trajectory.forEach(point => {
+                minX = Math.min(minX, point.x);
+                maxX = Math.max(maxX, point.x);
+                minY = Math.min(minY, point.y);
+                maxY = Math.max(maxY, point.y);
+            });
             
+            // Calcula escala
+            const rangeX = Math.max(Math.abs(minX), Math.abs(maxX), 10);
+            const rangeY = Math.max(Math.abs(minY), Math.abs(maxY), 10);
+            const maxRange = Math.max(rangeX, rangeY);
+            
+            const scale = Math.min(width, height) / (maxRange * 2.5);
             const originX = width / 2;
             const originY = height / 2;
             
@@ -433,133 +447,117 @@ y = 0       # posição em y
             // Labels
             ctx.fillStyle = '#94a3b8';
             ctx.font = 'bold 14px sans-serif';
-            ctx.fillText('X (metros)', width - 90, originY - 10);
-            ctx.fillText('Y (metros)', originX + 10, 25);
+            ctx.fillText('X (m)', width - 60, originY - 10);
+            ctx.fillText('Y (m)', originX + 10, 25);
             
             // Origem
             ctx.fillStyle = '#cbd5e1';
-            ctx.font = 'bold 13px monospace';
+            ctx.font = 'bold 12px monospace';
             ctx.fillText('(0,0)', originX + 8, originY - 8);
             
-            // Marcações nos eixos
+            // Marcações
             ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px monospace';
+            ctx.font = '11px monospace';
             
-            const step = 5;
-            const range = Math.ceil(maxVal / step) * step;
-            
-            for (let i = -range; i <= range; i += step) {
-                if (i === 0) continue;
+            const step = Math.ceil(maxRange / 10) * 2;
+            for (let i = -maxRange; i <= maxRange; i += step) {
+                if (i === 0 || Math.abs(i) < 0.1) continue;
                 
                 const xPos = originX + i * scale;
                 const yPos = originY - i * scale;
                 
                 if (xPos > 30 && xPos < width - 30) {
-                    ctx.fillText(i.toString(), xPos - 8, originY + 18);
-                    
-                    // Linha de marcação
-                    ctx.strokeStyle = '#334155';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(xPos, originY - 5);
-                    ctx.lineTo(xPos, originY + 5);
-                    ctx.stroke();
+                    ctx.fillText(Math.round(i).toString(), xPos - 10, originY + 18);
                 }
                 
                 if (yPos > 30 && yPos < height - 30) {
-                    ctx.fillText(i.toString(), originX - 30, yPos + 5);
-                    
-                    // Linha de marcação
-                    ctx.strokeStyle = '#334155';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(originX - 5, yPos);
-                    ctx.lineTo(originX + 5, yPos);
-                    ctx.stroke();
+                    ctx.fillText(Math.round(i).toString(), originX - 30, yPos + 5);
                 }
             }
             
-            // Calcula posição no canvas
-            const objX = originX + posX * scale;
-            const objY = originY - posY * scale;
-            
-            // Linha da origem até o objeto
+            // Desenha TRAJETÓRIA COMPLETA
             ctx.strokeStyle = '#60a5fa';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(originX, originY);
-            ctx.lineTo(objX, objY);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Linhas de grade até o objeto
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
-            
-            // Vertical
-            ctx.beginPath();
-            ctx.moveTo(objX, originY);
-            ctx.lineTo(objX, objY);
-            ctx.stroke();
-            
-            // Horizontal
-            ctx.beginPath();
-            ctx.moveTo(originX, objY);
-            ctx.lineTo(objX, objY);
-            ctx.stroke();
-            
-            ctx.setLineDash([]);
-            
-            // Objeto principal
-            ctx.fillStyle = '#10b981';
-            ctx.strokeStyle = '#22d3ee';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.arc(objX, objY, 12, 0, Math.PI * 2);
+            
+            trajectory.forEach((point, i) => {
+                const x = originX + point.x * scale;
+                const y = originY - point.y * scale;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Ponto inicial (verde)
+            const startX = originX + trajectory[0].x * scale;
+            const startY = originY - trajectory[0].y * scale;
+            
+            ctx.fillStyle = '#10b981';
+            ctx.strokeStyle = '#22d3ee';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(startX, startY, 8, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             
-            // Label da posição
-            ctx.fillStyle = '#22d3ee';
-            ctx.font = 'bold 14px monospace';
-            const label = `(${posX.toFixed(1)}, ${posY.toFixed(1)})`;
-            ctx.fillText(label, objX + 18, objY - 12);
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText('t=0', startX + 12, startY - 8);
+            
+            // Ponto final (amarelo maior)
+            const endX = originX + finalValues.x * scale;
+            const endY = originY - finalValues.y * scale;
+            
+            ctx.fillStyle = '#f59e0b';
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(endX, endY, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Label do ponto final
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 13px monospace';
+            const label = `(${finalValues.x.toFixed(1)}, ${finalValues.y.toFixed(1)})`;
+            ctx.fillText(label, endX + 18, endY - 12);
+            
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(`t=${tValue}s`, endX + 18, endY + 8);
             
             // Desenha vetores se existirem
-            if (results.vx !== undefined || results.vy !== undefined) {
-                const vx = results.vx || 0;
-                const vy = results.vy || 0;
+            if (finalValues.vx !== undefined || finalValues.vy !== undefined) {
+                const vx = finalValues.vx || 0;
+                const vy = finalValues.vy || 0;
                 const velScale = 5;
                 
                 ctx.strokeStyle = '#3b82f6';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(objX, objY);
-                ctx.lineTo(objX + vx * velScale, objY - vy * velScale);
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX + vx * velScale, endY - vy * velScale);
                 ctx.stroke();
                 
                 // Seta
                 const angle = Math.atan2(-vy, vx);
                 const arrowLen = 10;
                 ctx.beginPath();
-                ctx.moveTo(objX + vx * velScale, objY - vy * velScale);
+                ctx.moveTo(endX + vx * velScale, endY - vy * velScale);
                 ctx.lineTo(
-                    objX + vx * velScale - arrowLen * Math.cos(angle - Math.PI/6),
-                    objY - vy * velScale + arrowLen * Math.sin(angle - Math.PI/6)
+                    endX + vx * velScale - arrowLen * Math.cos(angle - Math.PI/6),
+                    endY - vy * velScale + arrowLen * Math.sin(angle - Math.PI/6)
                 );
-                ctx.moveTo(objX + vx * velScale, objY - vy * velScale);
+                ctx.moveTo(endX + vx * velScale, endY - vy * velScale);
                 ctx.lineTo(
-                    objX + vx * velScale - arrowLen * Math.cos(angle + Math.PI/6),
-                    objY - vy * velScale + arrowLen * Math.sin(angle + Math.PI/6)
+                    endX + vx * velScale - arrowLen * Math.cos(angle + Math.PI/6),
+                    endY - vy * velScale + arrowLen * Math.sin(angle + Math.PI/6)
                 );
                 ctx.stroke();
-                
-                // Label velocidade
-                ctx.fillStyle = '#3b82f6';
-                ctx.font = '12px sans-serif';
-                ctx.fillText('v', objX + vx * velScale + 15, objY - vy * velScale);
             }
         }
     </script>

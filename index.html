@@ -3,294 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Física - Cinemática Interativa</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Simulador de Física - Fórmulas Matemáticas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📐</text></svg>">
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: white;
             overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 1rem;
+            padding: 1rem;
+        }
+        
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .card-header {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+            color: #22d3ee;
+        }
+        
+        .editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        textarea {
+            flex: 1;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        button {
+            flex: 1;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-simulate {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-simulate:hover {
+            background: #059669;
+        }
+        
+        .btn-reset {
+            background: #64748b;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background: #475569;
+        }
+        
+        canvas {
+            width: 100%;
+            background: #0f172a;
+            border-radius: 4px;
+        }
+        
+        .telemetry {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        
+        .metric {
+            background: #0f172a;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.75rem;
+        }
+        
+        .metric-value {
+            color: #22d3ee;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+        
+        .error {
+            background: #7f1d1d;
+            border: 1px solid #991b1b;
+            color: #fca5a5;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+        
+        .success {
+            background: #064e3b;
+            border: 1px solid #065f46;
+            color: #6ee7b7;
+            padding: 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .help {
+            background: #1e293b;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-top: 0.5rem;
+        }
+        
+        .help-title {
+            color: #22d3ee;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        code {
+            background: #0f172a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            color: #fbbf24;
         }
     </style>
 </head>
 <body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-
-        // Ícones SVG inline
-        const PlayIcon = () => (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const PauseIcon = () => (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const RotateCcwIcon = () => (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-        );
-
-        const TargetIcon = () => (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-        );
-
-        const CodeIcon = () => (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-        );
-
-        const TrendingUpIcon = () => (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-        );
-
-        const PhysicsSimulator = () => {
-          const canvasRef = useRef(null);
-          const [isRunning, setIsRunning] = useState(false);
-          const [code, setCode] = useState(`// Desafio: Faça o objeto subir 15 metros
-// Posição inicial: (0, 0)
-// Objetivo: y >= 15
-
-function calcularFisica(t, dt) {
-  // t = tempo atual (s)
-  // dt = delta time (s)
-  
-  // Defina a velocidade inicial (m/s)
-  const v0 = { x: 0, y: 20 };
-  
-  // Defina a aceleração (m/s²)
-  const a = { x: 0, y: -9.8 }; // gravidade
-  
-  // Cinemática:
-  // v = v0 + a*t
-  // s = s0 + v0*t + (1/2)*a*t²
-  
-  const velocidade = {
-    x: v0.x + a.x * t,
-    y: v0.y + a.y * t
-  };
-  
-  const posicao = {
-    x: v0.x * t + 0.5 * a.x * t * t,
-    y: v0.y * t + 0.5 * a.y * t * t
-  };
-  
-  return { posicao, velocidade, aceleracao: a };
-}`);
-          
-          const [challenge, setChallenge] = useState({
-            title: "Desafio 1: Subida Vertical",
-            description: "Faça o objeto subir até pelo menos 15 metros de altura",
-            objective: { type: 'height', value: 15 },
-            initialPos: { x: 0, y: 0 }
-          });
-          
-          const [simulation, setSimulation] = useState({
-            time: 0,
-            position: { x: 0, y: 0 },
-            velocity: { x: 0, y: 0 },
-            acceleration: { x: 0, y: 0 },
-            trajectory: [],
-            maxHeight: 0,
-            success: false
-          });
-          
-          const [error, setError] = useState(null);
-          const [showGraphs, setShowGraphs] = useState(true);
-
-          const challenges = [
-            {
-              title: "Desafio 1: Subida Vertical",
-              description: "Faça o objeto subir até pelo menos 15 metros",
-              objective: { type: 'height', value: 15 },
-              initialPos: { x: 0, y: 0 }
-            },
-            {
-              title: "Desafio 2: Movimento Horizontal",
-              description: "Mova o objeto 20 metros para a direita em 4 segundos",
-              objective: { type: 'position', x: 20, y: 0, time: 4, tolerance: 2 },
-              initialPos: { x: 0, y: 0 }
-            },
-            {
-              title: "Desafio 3: Lançamento Parabólico",
-              description: "Acerte o alvo em (30, 10) metros",
-              objective: { type: 'target', x: 30, y: 10, tolerance: 2 },
-              initialPos: { x: 0, y: 0 }
-            },
-            {
-              title: "Desafio 4: Pouso Suave",
-              description: "Suba 25m e volte ao solo com velocidade < 5 m/s",
-              objective: { type: 'softLanding', height: 25, maxVelocity: 5 },
-              initialPos: { x: 0, y: 0 }
-            }
-          ];
-
-          const resetSimulation = () => {
-            setIsRunning(false);
-            setSimulation({
-              time: 0,
-              position: { ...challenge.initialPos },
-              velocity: { x: 0, y: 0 },
-              acceleration: { x: 0, y: 0 },
-              trajectory: [],
-              maxHeight: 0,
-              success: false
-            });
-            setError(null);
-          };
-
-          const checkObjective = (sim) => {
-            const obj = challenge.objective;
+    <div class="container">
+        <!-- Painel Esquerdo -->
+        <div class="panel">
+            <div class="card">
+                <div class="card-header">📐 Editor de Fórmulas Físicas</div>
+                <div class="help">
+                    <div class="help-title">Como usar:</div>
+                    <div>1. Defina valores: <code>v0 = 20</code></div>
+                    <div>2. Equações: <code>y = v0*t - 0.5*g*t^2</code></div>
+                    <div>3. Use: <code>t</code>, <code>^</code>, <code>sqrt()</code>, <code>sin()</code></div>
+                </div>
+            </div>
             
-            switch(obj.type) {
-              case 'height':
-                return sim.maxHeight >= obj.value;
-              
-              case 'position':
-                if (Math.abs(sim.time - obj.time) < 0.1) {
-                  const dx = Math.abs(sim.position.x - obj.x);
-                  const dy = Math.abs(sim.position.y - obj.y);
-                  return dx < obj.tolerance && dy < obj.tolerance;
-                }
-                return false;
-              
-              case 'target':
-                const dist = Math.sqrt(
-                  Math.pow(sim.position.x - obj.x, 2) + 
-                  Math.pow(sim.position.y - obj.y, 2)
-                );
-                return dist < obj.tolerance && sim.position.y <= 0.1;
-              
-              case 'softLanding':
-                if (sim.maxHeight >= obj.height && sim.position.y <= 0.1) {
-                  const speed = Math.sqrt(sim.velocity.x ** 2 + sim.velocity.y ** 2);
-                  return speed <= obj.maxVelocity;
-                }
-                return false;
-              
-              default:
-                return false;
-            }
-          };
+            <div class="card editor">
+                <textarea id="formulaInput" spellcheck="false"># Desafio: Subida Vertical
+# Faça o objeto subir 15 metros
 
-          useEffect(() => {
-            if (!isRunning) return;
+# Valores iniciais
+v0 = 20        # velocidade inicial (m/s)
+g = 9.8        # gravidade (m/s²)
+x0 = 0         # posição inicial em x
+y0 = 0         # posição inicial em y
 
-            const dt = 0.016; // ~60 FPS
-            let lastTime = Date.now();
+# Equações do movimento
+# t é a variável tempo (automática)
 
-            const interval = setInterval(() => {
-              const now = Date.now();
-              const elapsed = (now - lastTime) / 1000;
-              
-              setSimulation(prev => {
-                const newTime = prev.time + dt;
+# Posição
+x = x0
+y = y0 + v0*t - 0.5*g*t^2
+
+# Velocidade
+vx = 0
+vy = v0 - g*t
+
+# Aceleração
+ax = 0
+ay = -g</textarea>
+                <div id="errorDisplay"></div>
+            </div>
+            
+            <div class="card">
+                <div class="controls">
+                    <button class="btn-simulate" onclick="simulate()">▶️ Simular</button>
+                    <button class="btn-reset" onclick="reset()">🔄 Reset</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Painel Direito -->
+        <div class="panel">
+            <div class="card">
+                <div class="card-header">📊 Visualização</div>
+                <canvas id="canvas" width="600" height="400"></canvas>
+                <div id="successDisplay"></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">📈 Telemetria</div>
+                <div class="telemetry">
+                    <div class="metric">
+                        <div class="metric-label">Tempo</div>
+                        <div class="metric-value" id="time">0.00s</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Altura Máxima</div>
+                        <div class="metric-value" id="maxHeight">0.00m</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Posição X</div>
+                        <div class="metric-value" id="posX">0.00m</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Posição Y</div>
+                        <div class="metric-value" id="posY">0.00m</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Velocidade X</div>
+                        <div class="metric-value" id="velX">0.00m/s</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Velocidade Y</div>
+                        <div class="metric-value" id="velY">0.00m/s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let animationId = null;
+        let trajectory = [];
+        let maxHeight = 0;
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function parseFormulas(input) {
+            const lines = input.split('\n');
+            const constants = {};
+            const formulas = {};
+            
+            for (let line of lines) {
+                line = line.trim();
                 
-                try {
-                  // Executa o código do usuário
-                  const userFunction = new Function('t', 'dt', code + '\\nreturn calcularFisica(t, dt);');
-                  const result = userFunction(newTime, dt);
-                  
-                  if (!result || !result.posicao || !result.velocidade) {
-                    throw new Error("Função deve retornar { posicao, velocidade, aceleracao }");
-                  }
-                  
-                  const newPos = result.posicao;
-                  const newVel = result.velocidade;
-                  const newAcc = result.aceleracao || { x: 0, y: 0 };
-                  
-                  const newTrajectory = [...prev.trajectory, { x: newPos.x, y: newPos.y, t: newTime }];
-                  if (newTrajectory.length > 500) newTrajectory.shift();
-                  
-                  const newMaxHeight = Math.max(prev.maxHeight, newPos.y);
-                  
-                  const newSim = {
-                    time: newTime,
-                    position: newPos,
-                    velocity: newVel,
-                    acceleration: newAcc,
-                    trajectory: newTrajectory,
-                    maxHeight: newMaxHeight,
-                    success: prev.success
-                  };
-                  
-                  // Verifica objetivo
-                  if (!prev.success && checkObjective(newSim)) {
-                    newSim.success = true;
-                    setIsRunning(false);
-                  }
-                  
-                  // Para se passar de 10 segundos ou sair muito dos limites
-                  if (newTime > 10 || Math.abs(newPos.x) > 100 || newPos.y < -10) {
-                    setIsRunning(false);
-                  }
-                  
-                  setError(null);
-                  return newSim;
-                  
-                } catch (err) {
-                  setError(err.message);
-                  setIsRunning(false);
-                  return prev;
+                // Ignora comentários e linhas vazias
+                if (line.startsWith('#') || line === '') continue;
+                
+                // Processa atribuições
+                if (line.includes('=')) {
+                    const [left, right] = line.split('=').map(s => s.trim());
+                    
+                    // Se o lado direito não contém 't', é uma constante
+                    if (!right.includes('t')) {
+                        try {
+                            constants[left] = math.evaluate(right, constants);
+                        } catch (e) {
+                            throw new Error(`Erro ao avaliar constante "${left}": ${e.message}`);
+                        }
+                    } else {
+                        // É uma fórmula com t
+                        formulas[left] = right;
+                    }
                 }
-              });
-              
-              lastTime = now;
-            }, 16);
-
-            return () => clearInterval(interval);
-          }, [isRunning, code, challenge]);
-
-          // Renderização do Canvas
-          useEffect(() => {
-            const canvas = canvasRef.current;
-            if (!canvas) return;
+            }
             
-            const ctx = canvas.getContext('2d');
-            const width = canvas.width;
-            const height = canvas.height;
+            return { constants, formulas };
+        }
+        
+        function evaluateAtTime(formulas, constants, t) {
+            const scope = { ...constants, t };
+            const results = {};
+            
+            // Avalia cada fórmula
+            for (let [variable, formula] of Object.entries(formulas)) {
+                try {
+                    results[variable] = math.evaluate(formula, scope);
+                } catch (e) {
+                    throw new Error(`Erro em "${variable}": ${e.message}`);
+                }
+            }
+            
+            return results;
+        }
+        
+        function simulate() {
+            reset();
+            
+            const input = document.getElementById('formulaInput').value;
+            const errorDisplay = document.getElementById('errorDisplay');
+            const successDisplay = document.getElementById('successDisplay');
+            
+            errorDisplay.innerHTML = '';
+            successDisplay.innerHTML = '';
+            
+            try {
+                const { constants, formulas } = parseFormulas(input);
+                
+                // Verifica se tem as variáveis necessárias
+                if (!formulas.x && !formulas.y) {
+                    throw new Error('Defina pelo menos uma equação de posição (x ou y)');
+                }
+                
+                let t = 0;
+                const dt = 0.016; // 60 FPS
+                const maxTime = 10;
+                
+                function animate() {
+                    if (t > maxTime) {
+                        return;
+                    }
+                    
+                    try {
+                        const values = evaluateAtTime(formulas, constants, t);
+                        
+                        const pos = {
+                            x: values.x || 0,
+                            y: values.y || 0
+                        };
+                        
+                        const vel = {
+                            x: values.vx || 0,
+                            y: values.vy || 0
+                        };
+                        
+                        const acc = {
+                            x: values.ax || 0,
+                            y: values.ay || 0
+                        };
+                        
+                        // Atualiza telemetria
+                        document.getElementById('time').textContent = t.toFixed(2) + 's';
+                        document.getElementById('posX').textContent = pos.x.toFixed(2) + 'm';
+                        document.getElementById('posY').textContent = pos.y.toFixed(2) + 'm';
+                        document.getElementById('velX').textContent = vel.x.toFixed(2) + 'm/s';
+                        document.getElementById('velY').textContent = vel.y.toFixed(2) + 'm/s';
+                        
+                        maxHeight = Math.max(maxHeight, pos.y);
+                        document.getElementById('maxHeight').textContent = maxHeight.toFixed(2) + 'm';
+                        
+                        // Adiciona à trajetória
+                        trajectory.push({ x: pos.x, y: pos.y, t });
+                        
+                        // Desenha
+                        drawScene(pos, vel, acc);
+                        
+                        // Verifica objetivo (15m de altura)
+                        if (maxHeight >= 15 && !successDisplay.innerHTML) {
+                            successDisplay.innerHTML = '<div class="success">🎉 OBJETIVO ALCANÇADO! Altura ≥ 15m 🎉</div>';
+                        }
+                        
+                        // Para se sair dos limites ou voltar ao chão
+                        if (pos.y < -1 || Math.abs(pos.x) > 100 || Math.abs(pos.y) > 100) {
+                            return;
+                        }
+                        
+                        t += dt;
+                        animationId = requestAnimationFrame(animate);
+                        
+                    } catch (e) {
+                        errorDisplay.innerHTML = `<div class="error">⚠️ ${e.message}</div>`;
+                    }
+                }
+                
+                animate();
+                
+            } catch (e) {
+                errorDisplay.innerHTML = `<div class="error">⚠️ ${e.message}</div>`;
+            }
+        }
+        
+        function reset() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            trajectory = [];
+            maxHeight = 0;
+            
+            document.getElementById('time').textContent = '0.00s';
+            document.getElementById('maxHeight').textContent = '0.00m';
+            document.getElementById('posX').textContent = '0.00m';
+            document.getElementById('posY').textContent = '0.00m';
+            document.getElementById('velX').textContent = '0.00m/s';
+            document.getElementById('velY').textContent = '0.00m/s';
+            document.getElementById('errorDisplay').innerHTML = '';
+            document.getElementById('successDisplay').innerHTML = '';
             
             // Limpa canvas
             ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        function drawScene(pos, vel, acc) {
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Limpa
+            ctx.fillStyle = '#0f172a';
             ctx.fillRect(0, 0, width, height);
             
-            // Sistema de coordenadas: 1 metro = 8 pixels
+            // Configuração de escala
             const scale = 8;
             const originX = 50;
             const originY = height - 50;
             
-            // Desenha grid
+            // Grid
             ctx.strokeStyle = '#1e293b';
             ctx.lineWidth = 1;
             
             for (let x = 0; x <= width; x += scale * 5) {
-              ctx.beginPath();
-              ctx.moveTo(x, 0);
-              ctx.lineTo(x, height);
-              ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
             }
             
             for (let y = 0; y <= height; y += scale * 5) {
-              ctx.beginPath();
-              ctx.moveTo(0, y);
-              ctx.lineTo(width, y);
-              ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
             }
             
             // Eixos
@@ -306,259 +471,69 @@ function calcularFisica(t, dt) {
             ctx.lineTo(originX, height);
             ctx.stroke();
             
-            // Desenha objetivo
-            const obj = challenge.objective;
-            ctx.fillStyle = '#22d3ee44';
+            // Linha de objetivo (15m)
+            const targetY = originY - 15 * scale;
             ctx.strokeStyle = '#22d3ee';
             ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, targetY);
+            ctx.lineTo(width, targetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
             
-            if (obj.type === 'height') {
-              const targetY = originY - obj.value * scale;
-              ctx.fillRect(0, targetY - 2, width, 4);
-              ctx.font = '14px monospace';
-              ctx.fillStyle = '#22d3ee';
-              ctx.fillText(`Meta: ${obj.value}m`, 10, targetY - 10);
-            } else if (obj.type === 'target') {
-              const tx = originX + obj.x * scale;
-              const ty = originY - obj.y * scale;
-              ctx.beginPath();
-              ctx.arc(tx, ty, obj.tolerance * scale, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.stroke();
-            }
+            ctx.fillStyle = '#22d3ee';
+            ctx.font = '14px monospace';
+            ctx.fillText('Meta: 15m', 10, targetY - 5);
             
-            // Desenha trajetória
-            if (simulation.trajectory.length > 1) {
-              ctx.strokeStyle = '#60a5fa';
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              
-              simulation.trajectory.forEach((point, i) => {
-                const x = originX + point.x * scale;
-                const y = originY - point.y * scale;
+            // Trajetória
+            if (trajectory.length > 1) {
+                ctx.strokeStyle = '#60a5fa';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
                 
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-              });
-              
-              ctx.stroke();
+                trajectory.forEach((point, i) => {
+                    const x = originX + point.x * scale;
+                    const y = originY - point.y * scale;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                
+                ctx.stroke();
             }
             
-            // Desenha objeto
-            const objX = originX + simulation.position.x * scale;
-            const objY = originY - simulation.position.y * scale;
+            // Objeto
+            const objX = originX + pos.x * scale;
+            const objY = originY - pos.y * scale;
             
-            ctx.fillStyle = simulation.success ? '#10b981' : '#f59e0b';
+            ctx.fillStyle = maxHeight >= 15 ? '#10b981' : '#f59e0b';
             ctx.beginPath();
             ctx.arc(objX, objY, 8, 0, Math.PI * 2);
             ctx.fill();
             
-            // Desenha vetores de velocidade e aceleração
+            // Vetores
             const velScale = 3;
             const accScale = 10;
             
-            // Vetor velocidade (azul)
+            // Velocidade (azul)
             ctx.strokeStyle = '#3b82f6';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(objX, objY);
-            ctx.lineTo(
-              objX + simulation.velocity.x * velScale,
-              objY - simulation.velocity.y * velScale
-            );
+            ctx.lineTo(objX + vel.x * velScale, objY - vel.y * velScale);
             ctx.stroke();
             
-            // Vetor aceleração (vermelho)
+            // Aceleração (vermelho)
             ctx.strokeStyle = '#ef4444';
             ctx.beginPath();
             ctx.moveTo(objX, objY);
-            ctx.lineTo(
-              objX + simulation.acceleration.x * accScale,
-              objY - simulation.acceleration.y * accScale
-            );
+            ctx.lineTo(objX + acc.x * accScale, objY - acc.y * accScale);
             ctx.stroke();
-            
-          }, [simulation, challenge]);
-
-          return (
-            <div className="w-full h-screen bg-slate-950 text-white p-4 flex gap-4">
-              {/* Painel Esquerdo - Editor */}
-              <div className="w-1/2 flex flex-col gap-4">
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TargetIcon />
-                    <h2 className="text-xl font-bold">{challenge.title}</h2>
-                  </div>
-                  <p className="text-slate-300 mb-3">{challenge.description}</p>
-                  
-                  <div className="flex gap-2 flex-wrap">
-                    {challenges.map((ch, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          setChallenge(ch);
-                          resetSimulation();
-                        }}
-                        className={`px-3 py-1 rounded text-sm transition ${
-                          ch.title === challenge.title
-                            ? 'bg-cyan-600 text-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        }`}
-                      >
-                        Desafio {i + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-slate-900 rounded-lg border border-slate-800 flex flex-col">
-                  <div className="flex items-center gap-2 p-3 border-b border-slate-800">
-                    <CodeIcon />
-                    <h3 className="font-semibold">Editor de Física</h3>
-                  </div>
-                  
-                  <textarea
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="flex-1 bg-slate-950 p-4 font-mono text-sm resize-none focus:outline-none"
-                    spellCheck={false}
-                  />
-                  
-                  {error && (
-                    <div className="p-3 bg-red-950 border-t border-red-800 text-red-300 text-sm">
-                      ⚠️ {error}
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsRunning(!isRunning)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-semibold flex items-center justify-center gap-2 transition"
-                    >
-                      {isRunning ? <PauseIcon /> : <PlayIcon />}
-                      {isRunning ? 'Pausar' : 'Simular'}
-                    </button>
-                    
-                    <button
-                      onClick={resetSimulation}
-                      className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded font-semibold flex items-center gap-2 transition"
-                    >
-                      <RotateCcwIcon />
-                      Reset
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowGraphs(!showGraphs)}
-                      className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded font-semibold flex items-center gap-2 transition"
-                    >
-                      <TrendingUpIcon />
-                      Gráficos
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Painel Direito - Visualização */}
-              <div className="w-1/2 flex flex-col gap-4">
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <canvas
-                    ref={canvasRef}
-                    width={600}
-                    height={400}
-                    className="w-full bg-slate-950 rounded"
-                  />
-                  
-                  {simulation.success && (
-                    <div className="mt-3 p-3 bg-green-950 border border-green-800 rounded text-green-300 text-center font-semibold">
-                      🎉 OBJETIVO ALCANÇADO! 🎉
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <h3 className="font-semibold mb-3">Telemetria em Tempo Real</h3>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-sm font-mono">
-                    <div className="bg-slate-950 p-2 rounded">
-                      <div className="text-slate-400">Tempo</div>
-                      <div className="text-lg text-cyan-400">{simulation.time.toFixed(2)}s</div>
-                    </div>
-                    
-                    <div className="bg-slate-950 p-2 rounded">
-                      <div className="text-slate-400">Altura Máxima</div>
-                      <div className="text-lg text-amber-400">{simulation.maxHeight.toFixed(2)}m</div>
-                    </div>
-                    
-                    <div className="bg-slate-950 p-2 rounded">
-                      <div className="text-slate-400">Posição</div>
-                      <div className="text-blue-400">
-                        x: {simulation.position.x.toFixed(2)}m
-                      </div>
-                      <div className="text-blue-400">
-                        y: {simulation.position.y.toFixed(2)}m
-                      </div>
-                    </div>
-                    
-                    <div className="bg-slate-950 p-2 rounded">
-                      <div className="text-slate-400">Velocidade</div>
-                      <div className="text-blue-400">
-                        vx: {simulation.velocity.x.toFixed(2)}m/s
-                      </div>
-                      <div className="text-blue-400">
-                        vy: {simulation.velocity.y.toFixed(2)}m/s
-                      </div>
-                    </div>
-                    
-                    <div className="bg-slate-950 p-2 rounded col-span-2">
-                      <div className="text-slate-400">Aceleração</div>
-                      <div className="text-red-400">
-                        ax: {simulation.acceleration.x.toFixed(2)}m/s² | 
-                        ay: {simulation.acceleration.y.toFixed(2)}m/s²
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {showGraphs && (
-                  <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                    <h3 className="font-semibold mb-3">Gráficos</h3>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <div className="text-slate-400 mb-1">Posição Y (m)</div>
-                        <div className="h-12 bg-slate-950 rounded relative overflow-hidden">
-                          {simulation.trajectory.map((point, i) => {
-                            const x = (i / simulation.trajectory.length) * 100;
-                            const y = 100 - ((point.y + 10) / 50) * 100;
-                            return (
-                              <div
-                                key={i}
-                                className="absolute w-1 bg-blue-400"
-                                style={{
-                                  left: `${x}%`,
-                                  bottom: '0',
-                                  height: `${Math.max(0, Math.min(100, y))}%`
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-slate-500 mt-2">
-                        🔵 Velocidade (azul) | 🔴 Aceleração (vermelho)
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<PhysicsSimulator />);
+        }
+        
+        // Inicializa canvas
+        reset();
     </script>
 </body>
 </html>
